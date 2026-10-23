@@ -1,4 +1,5 @@
 import XCTest
+import Darwin
 @testable import GlutCore
 
 final class CoreTests: XCTestCase {
@@ -39,7 +40,7 @@ final class CoreTests: XCTestCase {
         XCTAssertThrowsError(try FanRequest(mode: .automatic, rules: [BoostRule(sensor: "TC0P", threshold: .nan)]).validate())
         XCTAssertThrowsError(try FanRequest(mode: .automatic, rules: Array(repeating: BoostRule(sensor: "TC0P"), count: 65)).validate())
     }
-    func testRPMClampingAndBadFirmwareLimits() throws {
+    func testRPMRangeMappingAndBadFirmwareLimits() throws {
         XCTAssertEqual(try FanPolicy.rpm(percent: 0, minimum: 1200, maximum: 6000), 1200)
         XCTAssertEqual(try FanPolicy.rpm(percent: 50, minimum: 1200, maximum: 6000), 3600)
         XCTAssertEqual(try FanPolicy.rpm(percent: 100, minimum: 1200, maximum: 6000), 6000)
@@ -69,9 +70,27 @@ final class CoreTests: XCTestCase {
         invalid.withUnsafeBytes { _ = write(sockets[0], $0.baseAddress, $0.count) }
         XCTAssertThrowsError(try LocalSocket.receive(FanRequest.self, from: sockets[1]))
     }
-    func testUnprivilegedHelperImpersonationIsRejected() throws {
+    func testUnexpectedHelperEndpointPathsAreRejected() throws {
         XCTAssertThrowsError(try FanConnection(path: "/tmp/arbitrary.sock"))
         XCTAssertThrowsError(try LocalSocket.address(String(repeating: "a", count: 200)))
+    }
+    func testUnprivilegedHelperPeerIsRejected() throws {
+        guard geteuid() != 0 else { throw XCTSkip("This test needs a non-root test runner.") }
+        let directory = "/private/tmp/glut." + UUID().uuidString
+        try FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: false)
+        let path = directory + "/control.sock"
+        let listener = socket(AF_UNIX, SOCK_STREAM, 0)
+        XCTAssertGreaterThanOrEqual(listener, 0)
+        defer { close(listener); unlink(path); rmdir(directory) }
+        var address = try LocalSocket.address(path)
+        let bound = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.bind(listener, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+        }
+        XCTAssertEqual(bound, 0)
+        XCTAssertEqual(listen(listener, 1), 0)
+        XCTAssertThrowsError(try FanConnection(path: path)) { error in
+            XCTAssertTrue(error.localizedDescription.contains("not running as root"))
+        }
     }
     func testSocketTimeoutAndEOF() throws {
         var sockets: [Int32] = [0, 0]
