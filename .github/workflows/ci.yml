@@ -1,0 +1,19 @@
+name: Build and test
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unit tests
+        run: swift test
+      - name: Universal app
+        run: bash Scripts/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Glut-universal
+          path: dist/Glut-*.zip
