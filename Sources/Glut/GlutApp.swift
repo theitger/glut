@@ -1,20 +1,70 @@
 import SwiftUI
 import AppKit
+import Combine
 import GlutCore
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+@MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var monitor: Monitor?
+    private var statusItem: NSStatusItem?
+    private let popover = NSPopover()
+    private var observation: AnyCancellable?
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.regular)
+        let monitor = Monitor()
+        self.monitor = monitor
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem = item
+        if let button = item.button {
+            button.image = NSImage(systemSymbolName: "thermometer.medium", accessibilityDescription: "Temperature")
+            button.imagePosition = .imageLeading
+            button.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
+            button.target = self
+            button.action = #selector(togglePopover)
+            button.setAccessibilityLabel("Glut")
+        }
+        let height = min(680, max(420, (NSScreen.main?.visibleFrame.height ?? 800) - 64))
+        popover.behavior = .transient
+        popover.contentViewController = NSHostingController(rootView:
+            MenuPanel().environmentObject(monitor).frame(width: 400, height: height))
+        popover.contentSize = NSSize(width: 400, height: height)
+        observation = monitor.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async { self?.updateTitle() }
+        }
+        updateTitle()
+        if CommandLine.arguments.contains("--show") {
+            DispatchQueue.main.async { [weak self] in self?.showPopover() }
+        }
+    }
+
+    private func updateTitle() {
+        guard let monitor else { return }
+        statusItem?.button?.title = " " + monitor.temperature(monitor.menuValue)
+        statusItem?.button?.toolTip = "Glut · \(monitor.menuSensor == "cpu" || monitor.menuSensor == "gpu" ? "10-second component average" : "Live sensor temperature")"
+    }
+
+    @objc private func togglePopover() {
+        if popover.isShown { popover.performClose(nil) } else { showPopover() }
+    }
+    private func showPopover() {
+        guard let button = statusItem?.button else { return }
         NSApp.activate(ignoringOtherApps: true)
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        popover.contentViewController?.view.window?.makeKey()
+    }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showPopover()
+        return false
+    }
+    func applicationWillTerminate(_ notification: Notification) {
+        monitor?.stopLogging()
+        monitor?.releaseControl()
     }
 }
 
-@main struct GlutApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @StateObject private var monitor: Monitor
-
-    init() {
+@main struct GlutLauncher {
+    @MainActor static func main() {
         if CommandLine.arguments.contains("--snapshot") {
             do {
                 let telemetry = try Telemetry()
@@ -25,31 +75,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 exit(0)
             } catch { fputs("Glut: \(error.localizedDescription)\n", stderr); exit(1) }
         }
-        _monitor = StateObject(wrappedValue: Monitor())
-    }
-    var body: some Scene {
-        Window("Glut", id: "main") {
-            MainView().environmentObject(monitor)
-        }
-        .defaultSize(width: 1020, height: 740)
-        .commands {
-            CommandGroup(replacing: .newItem) {}
-            CommandMenu("Monitoring") {
-                Button("Reset Maximum Temperatures") { monitor.resetMaximums() }
-                Button(monitor.logging ? "Stop CSV Logging" : "Start CSV Logging…") {
-                    if monitor.logging { monitor.stopLogging() } else { monitor.startLogging() }
-                }
-                Divider()
-                Button("Return Fan Control to macOS") { monitor.setMode(.system) }
-            }
-        }
-        MenuBarExtra {
-            MenuPanel().environmentObject(monitor)
-        } label: {
-            Image(systemName: "thermometer.medium")
-            Text(monitor.temperature(monitor.menuValue)).monospacedDigit()
-        }
-        .menuBarExtraStyle(.window)
-        Settings { SettingsView().environmentObject(monitor) }
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)
+        let delegate = AppDelegate()
+        app.delegate = delegate
+        withExtendedLifetime(delegate) { app.run() }
     }
 }

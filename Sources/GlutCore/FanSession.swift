@@ -43,7 +43,12 @@ public final class FanSession {
         case .max: return 100
         case .automatic:
             let keys = Set(request.rules.filter(\.enabled).map(\.sensor))
-            let readings = Dictionary(uniqueKeysWithValues: keys.compactMap { key in hardware.number(key).map { (key, $0) } })
+            let chip = Machine.chip
+            let readings = Dictionary(uniqueKeysWithValues: keys.compactMap { key -> (String, Double)? in
+                let group = SensorCatalog.describe(key, chip: chip).1
+                guard let value = hardware.number(key), TemperatureReading.isPlausible(value, group: group) else { return nil }
+                return (key, value)
+            })
             let result = try FanPolicy.boost(rules: request.rules, temperatures: readings, active: active)
             active = result.1
             return result.0

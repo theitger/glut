@@ -74,6 +74,15 @@ final class FanSessionTests: XCTestCase {
         XCTAssertThrowsError(try session.apply(FanRequest(mode: .manual, percent: 101)))
         XCTAssertEqual(hardware.resets, [[0, 1]])
     }
+    func testImplausibleLiveCPUReadingResetsInsteadOfSilentlyClearingRule() throws {
+        let hardware = FakeHardware()
+        let session = try FanSession(hardware: hardware, fans: fans())
+        let request = FanRequest(mode: .automatic, rules: [BoostRule(sensor: "TC0P")])
+        try session.apply(request)
+        hardware.readings["TC0P"] = 6.7
+        XCTAssertThrowsError(try session.apply(request))
+        XCTAssertEqual(hardware.resets, [[0, 1]])
+    }
     func testFailedResetCanBeRetriedAndReportsBothFailures() throws {
         let hardware = FakeHardware(); hardware.failFan = 1; hardware.failReset = true
         let session = try FanSession(hardware: hardware, fans: fans())

@@ -58,7 +58,8 @@ public final class Telemetry {
                   value.type == "flt " || value.type.hasPrefix("sp") || value.type.hasPrefix("fp"),
                   let number = value.number, (0...130).contains(number) else { return nil }
             let (name, group) = SensorCatalog.describe(key, chip: chip)
-            return Sensor(key: key, name: name, group: group, celsius: number)
+            return Sensor(key: key, name: name, group: group,
+                          celsius: TemperatureReading.isPlausible(number, group: group) ? number : nil)
         }.sorted { ($0.group.rawValue, $0.name, $0.id) < ($1.group.rawValue, $1.name, $1.id) }
         guard !sensors.isEmpty else { throw GlutError.message("No readable temperature sensors found. This Mac may need additional sensor support.") }
     }
@@ -66,7 +67,7 @@ public final class Telemetry {
     public func sample() -> Snapshot {
         for i in sensors.indices {
             let value = smc.number(sensors[i].id)
-            sensors[i].celsius = value.flatMap { (0...130).contains($0) ? $0 : nil }
+            sensors[i].celsius = value.flatMap { TemperatureReading.isPlausible($0, group: sensors[i].group) ? $0 : nil }
             if let current = sensors[i].celsius { sensors[i].maximum = max(sensors[i].maximum ?? current, current) }
         }
         return Snapshot(date: Date(), sensors: sensors, fans: smc.fans(), thermalState: Machine.thermalState, battery: Machine.battery())

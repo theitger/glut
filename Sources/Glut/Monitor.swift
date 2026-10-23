@@ -108,9 +108,13 @@ final class Sampler {
         visibleSensors.filter { group == nil || $0.group == group }.compactMap(\.celsius).max()
     }
     var visibleSensors: [Sensor] { (snapshot?.sensors ?? []).filter { showAdditionalSensors || $0.isKnown } }
+    func componentTemperature(_ group: SensorGroup) -> Double? {
+        guard snapshot != nil else { return nil }
+        return TemperatureSummary.rollingMean(group, history: history)
+    }
     var menuValue: Double? {
-        if menuSensor == "cpu" { return hottest(.cpu) }
-        if menuSensor == "gpu" { return hottest(.gpu) }
+        if menuSensor == "cpu" { return componentTemperature(.cpu) }
+        if menuSensor == "gpu" { return componentTemperature(.gpu) }
         if menuSensor == "hottest" { return hottest() }
         return snapshot?.sensors.first { $0.id == menuSensor }?.celsius
     }
@@ -199,6 +203,7 @@ final class Sampler {
         }
     }
     func startLogging() {
+        NSApp.activate(ignoringOtherApps: true)
         let panel = NSSavePanel()
         panel.nameFieldStringValue = "Glut-\(ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")).csv"
         panel.allowedContentTypes = [.commaSeparatedText]
