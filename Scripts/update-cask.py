@@ -19,7 +19,7 @@ cask = '''cask "glut" do
 
   url "https://github.com/theitger/glut/releases/download/v#{version}/Glut-#{version}.zip"
   name "Glut"
-  desc "Mac temperature monitoring and fan control"
+  desc "Temperature monitoring and fan control"
   homepage "https://github.com/theitger/glut"
 
   depends_on macos: :sonoma

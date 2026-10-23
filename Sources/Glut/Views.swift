@@ -206,7 +206,7 @@ struct MainView: View {
             Text(monitor.snapshot.map { "Updated \($0.date.formatted(date: .omitted, time: .standard)) · every 2 seconds" } ?? "Connecting to AppleSMC…")
             Spacer()
             if monitor.logging { Label("Recording CSV", systemImage: "record.circle.fill").foregroundStyle(.red).help(monitor.logPath ?? "") }
-            Text("Glut 0.1.0 · Open Source").foregroundStyle(.tertiary)
+            Text("Glut \(monitor.version) · Open Source").foregroundStyle(.tertiary)
         }.font(.caption2).foregroundStyle(.secondary).padding(.horizontal, 14).padding(.vertical, 8)
     }
     private func diagnosticRow(_ title: String, value: String, good: Bool) -> some View {
@@ -359,7 +359,7 @@ struct SettingsView: View {
             }
             Section {
                 HStack {
-                    Text("Glut 0.1.0 · MIT License").foregroundStyle(.secondary)
+                    Text("Glut \(monitor.version) · MIT License").foregroundStyle(.secondary)
                     Spacer()
                     Link("Source Code", destination: URL(string: "https://github.com/theitger/glut")!)
                 }.font(.caption)

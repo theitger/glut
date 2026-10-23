@@ -42,7 +42,8 @@ final class Sampler {
             } catch { completion(error) }
         }
     }
-    func update(_ request: FanRequest) { queue.async { self.request = request; self.tick() } }
+    // Coalesce slider edits until the next heartbeat instead of queuing a full sensor scan per pixel.
+    func update(_ request: FanRequest) { queue.async { self.request = request } }
     func resetMaximums() { queue.async { self.telemetry?.resetMaximums(); self.tick() } }
     func disconnect() { queue.async { self.request = FanRequest(mode: .system); self.connection = nil } }
 }
@@ -81,6 +82,7 @@ final class Sampler {
     private var controlGeneration = 0
     let chip = Machine.chip
     let machine = Machine.model
+    let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "development"
 
     init() {
         if let data = UserDefaults.standard.data(forKey: "rules") {

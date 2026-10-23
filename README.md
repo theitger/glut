@@ -16,7 +16,7 @@ Requires **macOS 14 Sonoma or later**, Apple Silicon or Intel.
 brew install --cask theitger/tap/glut
 ```
 
-Or download `Glut-0.1.0.zip` from [Releases](https://github.com/theitger/glut/releases) and move `Glut.app` into Applications.
+Or download `Glut-0.1.1.zip` from [Releases](https://github.com/theitger/glut/releases) and move `Glut.app` into Applications.
 
 The initial release is **ad-hoc signed, not Apple-notarized**. macOS may require you to allow Glut in **System Settings → Privacy & Security → Open Anyway** after the first launch attempt. Homebrew does not remove quarantine or disable Gatekeeper.
 
@@ -52,7 +52,7 @@ Glut is an independent implementation. It does not include TG Pro code, branding
 
 Sensor availability and write support vary by Mac. Unknown temperature sensors retain their raw keys and are hidden by default; enable **Include unmapped sensor keys** in Settings to include them in the table and temperature summaries/alerts. Labels are best-effort mappings, not an Apple hardware contract. Fanless Macs offer monitoring only. Hardware status reflects readable sensors and thermal pressure; it cannot certify a healthy fan or replace Apple Diagnostics.
 
-Not implemented in 0.1.0: external drive SMART monitoring, email alerts, shutdown-cause diagnostics, independent per-fan settings, advanced fan curves, or automatic updates. Alert limits, rule thresholds, and CSV temperatures always use Celsius. Fan rules and general preferences persist locally; custom control always starts in **System** mode.
+Not implemented in 0.1.1: external drive SMART monitoring, email alerts, shutdown-cause diagnostics, independent per-fan settings, advanced fan curves, or automatic updates. Alert limits, rule thresholds, and CSV temperatures always use Celsius. Fan rules and general preferences persist locally; custom control always starts in **System** mode.
 
 ## Build
 
@@ -87,7 +87,7 @@ Tests cover binary sensor decoding, chip-specific labels, competing rules and hy
 CI runs tests and packages a Universal app. Pushing a `v*` tag publishes a release after validating that the tag matches `Resources/Info.plist`. To publish an update in the tap:
 
 ```sh
-python3 Scripts/update-cask.py --version 0.1.0 --archive dist/Glut-0.1.0.zip --tap /path/to/homebrew-tap
+python3 Scripts/update-cask.py --version 0.1.1 --archive dist/Glut-0.1.1.zip --tap /path/to/homebrew-tap
 ```
 
 Review, commit, and push the generated cask alongside the release. Archives are pinned by SHA-256.
